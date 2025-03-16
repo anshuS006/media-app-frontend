@@ -1,0 +1,39 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - prod
+env:
+  CI: false
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/prod'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Connect to GCP VM and Deploy
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.GCP_HOST_PORD }}
+          username: ${{ secrets.GCP_USER }}
+          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          script: |
+            echo "🚀 Connecting to GCP VM..."
+            cd /home/anshuatul006/media-app-frontend
+            echo "🔄 Pulling latest code..."
+            git pull origin prod
+            echo "📦 Installing dependencies..."
+            npm install --production
+            echo "⚙️ Running build step (if applicable)..."
+            npm run build || echo "No build step required"
+            echo "🔄 Restarting server with PM2..."
+            sudo rm -rf /var/www/html/*
+            sudo cp -r /home/anshuatul006/media-app-frontend/build/* /var/www/html/
+            sudo systemctl restart nginx
+            echo "Deployment successful!"
