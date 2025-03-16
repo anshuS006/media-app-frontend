@@ -1,0 +1,37 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - stg
+env:
+  CI: false
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/stg'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up SSH Key
+        run: |
+          echo "${{ secrets.GCP_SSH_PRIVATE_KEY }}" > private_key
+          chmod 600 private_key
+
+      - name: Deploy to GCP VM
+        run: |
+          ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.GCP_USER }}@${{ secrets.GCP_HOST }} << 'EOF'
+            cd /home/anshuatul006/media-app-frontend
+            git reset --hard
+            git pull origin stg
+            npm install
+            npm run build
+            sudo rm -rf /var/www/html/*
+            sudo cp -r /home/anshuatul006/media-app-frontend/build/* /var/www/html/
+            sudo systemctl restart nginx
+            echo "Deployment successful!"
+          EOF
